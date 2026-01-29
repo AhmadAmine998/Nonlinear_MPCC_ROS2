@@ -6,7 +6,7 @@ import os
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('nonlinear_mpc_casadi')
-    params_file = os.path.join(pkg_share, 'params', 'mpc_params.yaml')
+    params_file = os.path.join(pkg_share, 'params', 'mpcc_params.yaml')
 
     return LaunchDescription([
         Node(
