@@ -1,0 +1,49 @@
+mpc_node:
+  ros__parameters:
+    dT: 0.15
+    mpc_steps_N: 20
+    vehicle_L: 0.325
+
+    max_speed: 5.0
+    mpc_ref_cte: 0.0
+    mpc_ref_epsi: 0.0
+    mpc_ref_vel: 2.5
+
+    mpc_w_cte: 30.0
+    mpc_w_lag: 800.0
+    mpc_w_vel: 4.0
+    mpc_w_p: 40.0
+    mpc_w_delta: 20.0
+    mpc_w_accel: 10.0
+    mpc_w_delta_d: 900.0
+    mpc_w_delta_p: 0.0
+
+    mpc_max_steering: 0.42
+    mpc_max_throttle: 1.0
+    mpc_bound_value: 1000.0
+
+    p_max: 6.0
+    d_v_bound: 2.0
+    d_theta_bound: 0.5
+    d_p_bound: 2.0
+
+    debug_mode: true
+    delay_mode: true
+    throttle_mode: false
+    car_width: 0.3
+    spline_poly_order: 3
+    goal_threshold: 0.6
+    controller_freq: 15
+    path_folder_name: porto
+    inflation_factor: 0.8
+    lag_time: 0.05
+    ipopt_verbose: true
+    ipopt_jit: false
+    ipopt_linear_solver: mumps
+    car_frame: base_link
+
+    odom_topic_name: /ego_racecar/odom
+    goal_topic_name: /move_base_simple/goal
+    cmd_vel_topic_name: /drive
+    localized_pose_topic_name: /ego_racecar/odom
+    localized_pose_is_odom: true
