@@ -32,21 +32,21 @@ sudo apt install coinor-libipopt-dev pkg-config coinor-ipopt coinor-libipopt-dev
 ```shell
 cmake -DWITH_PYTHON=ON -DWITH_SUNDIALS=OFF -DWITH_CSPARSE=OFF -DWITH_TINYXML=OFF -DWITH_IPOPT=ON -DWITH_CLANG=ON ..
 ```
-3.  After everthing is set up,launch the F1/10 simulator if you want to test the node on the simulator.
+3.  After everthing is set up, launch the f1tenth_gym_ros to test the node in sim:
 ```shell
-roslaunch racecar_simulator simulator.launch
+ros2 launch f1tenth_gym_ros gym_bridge_launch.py
 ```
 4. If the program is to be run on the actual F1/10 car, then launch particle filter on the car.
 ```shell
-roslaunch nonlinear_mpc_casadi real_particle_filter.launch
+ros2 launch particle_filter localize_launch.py
 ```
 Make sure you are loading appropriate map files in this launch file.
 
-4. Launch the nonlinear MPCC node using appropriate launch file depending on whether you want to test
+5. Launch the nonlinear MPCC node using appropriate launch file depending on whether you want to test
 on the simulator or actual F1/10 car.
 ```shell
-roslaunch nonlinear_mpc_casadi mpcc_f110_car.launch   ###FOR F1/10 car
-roslaunch nonlinear_mpc_casadi mpcc_f110_simulator.launch  ###FOR F1/10 simualtor 
+ros2 launch nonlinear_mpc_casadi mpcc_f110_car.launch.py   ###FOR F1/10 car
+ros2 launch nonlinear_mpc_casadi mpcc_f110_simulator.launch.py  ###FOR F1/10 simualtor 
 ```
 
 ## F1TENTH Gym (ROS2) Simulator Setup
@@ -90,7 +90,7 @@ interface in its repo [here](https://github.com/AMZ-Driverless/fssim).
 
 After you have setup the FSSIM simulator, you can run MPCC on the car by simply running its launch file as follows,
 ```shell
-roslaunch nonlinear_mpc_casadi mpcc_fssim.launch     
+ros2 launch nonlinear_mpc_casadi mpcc_fssim.launch.py     
 ```
 
 Few sample clips of the MPCC in operation on FSSIM are shown below. 
