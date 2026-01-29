@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from casadi import *
 import numpy as np
 
-import rospy
 from geometry_msgs.msg import Point, Quaternion, Vector3
 from std_msgs.msg import ColorRGBA
-from tf.transformations import quaternion_from_euler
+from scipy.spatial.transform import Rotation as R
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -51,6 +50,7 @@ class MPC:
         self.INTEGRATION_MODE = "Euler"  # RK4 and RK3 method are the other two choices
         self.p_initial = 2.0  # projected centerline vel can set to desired value for initial estimation
         self.boundary_pub = None
+        self.logger = None
 
     def setup_MPC(self):
         self.init_system_model()
@@ -118,7 +118,7 @@ class MPC:
         self.s_min, self.s_max = param['s_min'], param['s_max']
         self.p_min, self.p_max = param['p_min'], param['p_max']
         self.INTEGRATION_MODE = param['INTEGRATION_MODE']
-        print self.param
+        print(self.param)
 
     def set_track_data(self, c_x, c_y, c_dx, c_dy, r_x, r_y, l_x, l_y, element_arc_lengths, original_arc_length_total):
         self.center_lut_x, self.center_lut_y = c_x, c_y
@@ -189,12 +189,12 @@ class MPC:
         self.opts["ipopt"]["max_iter"] = 2000
         self.opts["ipopt"]["print_level"] = 0
         self.opts["verbose"] = self.param['ipopt_verbose']
-        self.opts["jit"] = True
+        self.opts["jit"] = bool(self.param.get('ipopt_jit', False))
         self.opts["print_time"] = 0
         self.opts["ipopt"]["acceptable_tol"] = 1e-8
         self.opts["ipopt"]["acceptable_obj_change_tol"] = 1e-6
         self.opts["ipopt"]["fixed_variable_treatment"] = "make_parameter"
-        self.opts["ipopt"]["linear_solver"] = "ma57"
+        self.opts["ipopt"]["linear_solver"] = self.param.get('ipopt_linear_solver', "ma57")
         # Nonlinear problem formulation with solver initialization
         self.nlp_prob = {'f': self.obj, 'x': OPT_variables, 'g': self.g, 'p': self.P}
         self.solver = nlpsol('solver', 'ipopt', self.nlp_prob, self.opts)
@@ -224,21 +224,38 @@ class MPC:
         self.u0 = np.zeros((self.N, self.n_controls))
         self.X0 = np.zeros((self.N + 1, self.n_states))
 
+    def _to_scalar(self, value):
+        """Convert casadi/ndarray scalars to Python float for numpy assignment."""
+        if isinstance(value, (float, int, np.floating, np.integer)):
+            return float(value)
+        try:
+            return float(np.array(value).squeeze())
+        except Exception:
+            return float(value)
+
     def get_angle_at_centerline(self, s):
-        dx, dy = self.center_lut_dx(s), self.center_lut_dy(s)
-        return np.arctan2(dy, dx)
+        dx = self._to_scalar(self.center_lut_dx(s))
+        dy = self._to_scalar(self.center_lut_dy(s))
+        return float(np.arctan2(dy, dx))
 
     def get_point_at_centerline(self, s):
-        return self.center_lut_x(s), self.center_lut_y(s)
+        x = self._to_scalar(self.center_lut_x(s))
+        y = self._to_scalar(self.center_lut_y(s))
+        return x, y
 
     def get_path_constraints_points(self, prev_soln):
         right_points = np.zeros((self.N, 2))
         left_points = np.zeros((self.N, 2))
         for k in range(1, self.N + 1):
-            right_points[k - 1, :] = [self.right_lut_x(prev_soln[k, 3]),
-                                      self.right_lut_y(prev_soln[k, 3])]  # Right boundary
-            left_points[k - 1, :] = [self.left_lut_x(prev_soln[k, 3]),
-                                     self.left_lut_y(prev_soln[k, 3])]  # Left boundary
+            s_val = prev_soln[k, 3]
+            right_points[k - 1, :] = [
+                self._to_scalar(self.right_lut_x(s_val)),
+                self._to_scalar(self.right_lut_y(s_val)),
+            ]  # Right boundary
+            left_points[k - 1, :] = [
+                self._to_scalar(self.left_lut_x(s_val)),
+                self._to_scalar(self.left_lut_y(s_val)),
+            ]  # Left boundary
         return right_points, left_points
 
     def construct_warm_start_soln(self, initial_state):
@@ -272,9 +289,11 @@ class MPC:
             else:
                 initial_state[2] = new_val_floor
         if not self.WARM_START:
-            rospy.loginfo("Warm start started")
+            if self.logger:
+                self.logger.info("Warm start started")
             self.construct_warm_start_soln(initial_state)
-            rospy.loginfo("Warm start accomplished")
+            if self.logger:
+                self.logger.info("Warm start accomplished")
 
         initial_state[3] = self.filter_estimate(initial_state[3])
         p[0:self.n_states] = initial_state  # initial condition of the robot posture
@@ -321,8 +340,13 @@ class MPC:
         return con_first, trajectory, inputs
 
     def heading(self, yaw):
-        q = quaternion_from_euler(0, 0, yaw)
-        return Quaternion(*q)
+        q = R.from_euler('z', yaw).as_quat()
+        quat = Quaternion()
+        quat.x = float(q[0])
+        quat.y = float(q[1])
+        quat.z = float(q[2])
+        quat.w = float(q[3])
+        return quat
 
     def publish_boundary_markers(self, right_points, left_points):
         boundary_array = MarkerArray()
@@ -335,10 +359,19 @@ class MPC:
             path_marker.id = i
             path_marker.type = path_marker.ARROW
             path_marker.action = path_marker.ADD
-            path_marker.scale = Vector3(0.25, 0.05, 0.05)
-            path_marker.color = ColorRGBA(0.0, 0.0, 1.0, 0.8)
+            path_marker.scale.x = 0.25
+            path_marker.scale.y = 0.05
+            path_marker.scale.z = 0.05
+            path_marker.color.r = 0.0
+            path_marker.color.g = 0.0
+            path_marker.color.b = 1.0
+            path_marker.color.a = 0.8
             path_marker.pose.orientation = self.heading(angles[i % right_points.shape[0]])
-            path_marker.pose.position = Point(float(combined_points[i, 0]), float(combined_points[i, 1]), 0.0)
+            point = Point()
+            point.x = float(combined_points[i, 0])
+            point.y = float(combined_points[i, 1])
+            point.z = 0.0
+            path_marker.pose.position = point
             boundary_array.markers.append(path_marker)
         self.boundary_pub.publish(boundary_array)
 
