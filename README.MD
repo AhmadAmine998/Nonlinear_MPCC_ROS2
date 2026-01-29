@@ -20,13 +20,15 @@ Head to https://github.com/casadi/casadi/wiki/InstallationLinux and install Casa
 To avoid some build issues,install the following dependencies:
 >Install clang and llvm using:
 ```shell
+sudo apt install clang
 sudo apt-get install libclang-dev
 sudo apt-get install llvm-dev
+sudo apt install coinor-libipopt-dev pkg-config coinor-ipopt coinor-libipopt-dev pkg-config
 ```
 
 >Follow instructions to build IPOPT from source as well.
 >Follow instructions on Adding Additional Linear Solvers section to use HSL libraries.
->Execute this while building casadi from source 
+>To build casadi from source, use the following cmake command: 
 ```shell
 cmake -DWITH_PYTHON=ON -DWITH_SUNDIALS=OFF -DWITH_CSPARSE=OFF -DWITH_TINYXML=OFF -DWITH_IPOPT=ON -DWITH_CLANG=ON ..
 ```
@@ -46,6 +48,18 @@ on the simulator or actual F1/10 car.
 roslaunch nonlinear_mpc_casadi mpcc_f110_car.launch   ###FOR F1/10 car
 roslaunch nonlinear_mpc_casadi mpcc_f110_simulator.launch  ###FOR F1/10 simualtor 
 ```
+
+## F1TENTH Gym (ROS2) Simulator Setup
+Use the dev-humble branch instructions from the official repo:
+https://github.com/f1tenth/f1tenth_gym_ros/tree/dev-humble
+
+### Map setup (example: porto)
+1) Copy your map files into the gym ROS maps folder:
+```
+f1tenth_gym_ros/maps/porto.pgm
+f1tenth_gym_ros/maps/porto.yaml
+```
+2) Update `f1tenth_gym_ros/config/sim.yaml` to point to your map and any other desired parameters.
 
 Few sample clips of the MPCC in F1/10 simulator are shown below.
  
@@ -96,15 +110,13 @@ The parameters of the MPCC can be tuned in `mpc_params_fssim.yaml` file located 
 #### Published topics
 - /(cmd_vel_topic_name) (ackermann_msgs/AckermannDriveStamped)
   - for sending driving command to the car
-  - cmd_vel_topic_name: parameter in the mpc param file. (default: /car1_30m/vesc/high_level/ackermann_cmd_mux/input/nav_0)
+  - cmd_vel_topic_name: parameter in the mpc param file. (default: /drive)
 - /mpc_trajectory (nav_msgs/Path)
   - Trajectory computed by mpc
 - /boundary_marker (visualization_msgs/MarkerArray)
   - for visualizing path constraints
-- /mpc_prediction (MPC_trajectory)
-  - detailed information of mpc trajectory for reachability computation
-- /mpc_metadata (MPC_metadata)
-  - metadata of MPC for reachability computation
+- /mpc_prediction (visualization_msgs/MarkerArray)
+  - visualization of MPC predicted trajectory
 - /center_path (nav_msgs/Path)
   - Reference centerline path of the track for MPCC tracking
 - /left_path (nav_msgs/Path)
